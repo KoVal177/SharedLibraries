@@ -19,7 +19,7 @@ namespace ExcelExtensions
             public XlXmlReader(string sourceFileNameFull) =>
                 this.SourceFileNameFull = sourceFileNameFull;
 
-            public List<string> GetValuesColumnAsString(
+            public List<string> GetColumnValuesAsString(
                 string sheet,
                 string range)
             {
@@ -30,37 +30,35 @@ namespace ExcelExtensions
                 string startCellLetter = Xl.GetCellColumnLetter(startCell);
                 int startRow = startCell.Any(char.IsDigit) ? Xl.GetCellRowIndex(startCell) : 1;
                 int endRow = endCell.Any(char.IsDigit) ? Xl.GetCellRowIndex(endCell) : -1;
-                int maxRowWithValue = startRow;
+                var maxRowWithValue = (endRow != -1) ? endRow : startRow;
 
-                using (var sourceFile = SpreadsheetDocument.Open(this.SourceFileNameFull, false))
+                using var sourceFile = SpreadsheetDocument.Open(this.SourceFileNameFull, false);
+                var wbPart = sourceFile.WorkbookPart;
+                var wsPart = (WorksheetPart)wbPart
+                    .GetPartById(wbPart.Workbook.Descendants<Sheet>()
+                    .First(s => s.Name == sheet).Id);
+                var lastRowToCheck = (endRow != -1)
+                    ? endRow
+                    : Xl.GetCellRowIndex(wsPart.Worksheet.SheetDimension.Reference);
+
+                foreach (var cell in wsPart.Worksheet.Descendants<Cell>())
                 {
-                    var wb = sourceFile.WorkbookPart.Workbook;
-                    var wsPart = (WorksheetPart)sourceFile.WorkbookPart
-                        .GetPartById(wb.Descendants<Sheet>()
-                        .First(s => s.Name == sheet).Id);
-                    var lastRowToCheck = (endRow != -1)
-                        ? endRow
-                        : Xl.GetCellRowIndex(wsPart.Worksheet.SheetDimension.Reference);
+                    int cellRowIndex = Xl.GetCellRowIndex(cell.CellReference.Value);
+                    if (startCellLetter != Xl.GetCellColumnLetter(cell.CellReference.Value)
+                        || cellRowIndex < startRow
+                        || cellRowIndex > lastRowToCheck)
+                        continue;
+                    string cellValue = GetCellValueAsString(cell, wbPart);
+                    if (string.IsNullOrEmpty(cellValue)) continue;
 
-                    foreach (var cell in wsPart.Worksheet.Descendants<Cell>())
-                    {
-                        int cellRowIndex = Xl.GetCellRowIndex(cell.CellReference.Value);
-                        if (startCellLetter != Xl.GetCellColumnLetter(cell.CellReference.Value)
-                            || cellRowIndex < startRow
-                            || cellRowIndex > lastRowToCheck)
-                            continue;
-                        string cellValue = GetCellValueAsString(cell, wb.WorkbookPart);
-                        if (string.IsNullOrEmpty(cellValue)) continue;
-
-                        if (cellRowIndex > maxRowWithValue) maxRowWithValue = cellRowIndex;
-                        columnValues.Add(cellRowIndex, cellValue);
-                    }
+                    if (cellRowIndex > maxRowWithValue) maxRowWithValue = cellRowIndex;
+                    columnValues.Add(cellRowIndex, cellValue);
                 }
                 return Enumerable.Range(startRow, maxRowWithValue - startRow + 1)
                     .Select(i => columnValues.ContainsKey(i) ? columnValues[i] : "")
                     .ToList();
             }
-            public List<string> GetValuesRowAsString(
+            public List<string> GetRowValuesAsString(
                 string sheet,
                 string range)
             {
@@ -71,39 +69,52 @@ namespace ExcelExtensions
                 int startRow = Xl.GetCellRowIndex(startCell);
                 int startColIndex = (startCell.Any(char.IsLetter)) ? Xl.GetCellColumnIndex(startCell) : 1;
                 int endColIndex = (endCell.Any(char.IsLetter)) ? Xl.GetCellColumnIndex(endCell) : -1;
-                int maxColWithValueIndex = startColIndex;
+                var maxColWithValueIndex = (endColIndex != -1) ? endColIndex : startColIndex;
 
-                using (var sourceFile = SpreadsheetDocument.Open(this.SourceFileNameFull, false))
+                using var sourceFile = SpreadsheetDocument.Open(this.SourceFileNameFull, false);
+                var wbPart = sourceFile.WorkbookPart;
+                var wsPart = (WorksheetPart)wbPart
+                    .GetPartById(wbPart.Workbook.Descendants<Sheet>()
+                    .First(s => s.Name == sheet).Id);
+                var lastColToCheckIndex = (endColIndex != -1)
+                    ? endColIndex
+                    : Xl.GetCellColumnIndex(
+                        wsPart.Worksheet.SheetDimension.Reference.ToString().Split(':')[1]);
+
+                foreach (var cell in wsPart.Worksheet.Descendants<Cell>())
                 {
-                    var wb = sourceFile.WorkbookPart.Workbook;
-                    var wsPart = (WorksheetPart)sourceFile.WorkbookPart
-                        .GetPartById(wb.Descendants<Sheet>()
-                        .First(s => s.Name == sheet).Id);
-                    var lastColToCheckIndex = (endColIndex != -1)
-                        ? endColIndex
-                        : Xl.GetCellColumnIndex(
-                            wsPart.Worksheet.SheetDimension.Reference.ToString().Split(':')[1]);
+                    int cellColIndex = Xl.GetCellColumnIndex(cell.CellReference.Value);
+                    if (startRow != Xl.GetCellRowIndex(cell.CellReference.Value)
+                        || cellColIndex < startColIndex
+                        || cellColIndex > lastColToCheckIndex)
+                        continue;
+                    string cellValue = GetCellValueAsString(cell, wbPart);
+                    if (string.IsNullOrEmpty(cellValue)) continue;
 
-                    foreach (var cell in wsPart.Worksheet.Descendants<Cell>())
-                    {
-                        int cellColIndex = Xl.GetCellColumnIndex(cell.CellReference.Value);
-                        if (startRow != Xl.GetCellRowIndex(cell.CellReference.Value)
-                            || cellColIndex < startColIndex
-                            || cellColIndex > lastColToCheckIndex)
-                            continue;
-                        string cellValue = GetCellValueAsString(cell, wb.WorkbookPart);
-                        if (string.IsNullOrEmpty(cellValue)) continue;
-
-                        if (cellColIndex > maxColWithValueIndex) maxColWithValueIndex = cellColIndex;
-                        rowValues.Add(cellColIndex, cellValue);
-                    }
+                    if (cellColIndex > maxColWithValueIndex) maxColWithValueIndex = cellColIndex;
+                    rowValues.Add(cellColIndex, cellValue);
                 }
+                
                 return Enumerable.Range(startColIndex, maxColWithValueIndex - startColIndex + 1)
                     .Select(i => rowValues.ContainsKey(i) ? rowValues[i] : "")
                     .ToList();
             }
 
-            public static string GetCellValueAsString(Cell cell, WorkbookPart? workbookPart)
+            public string GetCellValueAsString(string sheetName, string cellName)
+            {
+                using var sourceFile = SpreadsheetDocument.Open(this.SourceFileNameFull, false);
+                var wbPart = sourceFile.WorkbookPart;
+                var wsPart = (WorksheetPart)wbPart
+                    .GetPartById(wbPart.Workbook.Descendants<Sheet>()
+                    .First(s => s.Name == sheetName).Id);
+                var cell = wsPart.Worksheet.Descendants<Cell>()
+                    .FirstOrDefault(c => c.CellReference.Value == cellName);
+                if (cell is null)
+                    return string.Empty;
+                return GetCellValueAsString(cell, wbPart);
+            }
+
+            private string GetCellValueAsString(Cell cell, WorkbookPart? workbookPart)
             {
                 string cellValue = string.Empty;
                 if (cell.DataType is null)

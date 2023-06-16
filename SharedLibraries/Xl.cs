@@ -8,46 +8,46 @@ namespace ExcelExtensions
 {
     class Xl
     {
-        public static int GetCellRowIndex(string cell)
+        public static int GetCellRowIndex(string cellName)
         {
             int rowIndex = 0;
-            int i = cell.Length - 1;
+            int i = cellName.Length - 1;
             int multiplier = 1;
-            while (i >= 0 && cell[i] >= '0' && cell[i] <= '9')
+            while (i >= 0 && cellName[i] >= '0' && cellName[i] <= '9')
             {
-                rowIndex += (cell[i] - '0') * multiplier;
+                rowIndex += (cellName[i] - '0') * multiplier;
                 multiplier *= 10;
                 i--;
             }
             return rowIndex;
         }
 
-        public static int GetCellColumnIndex(string cell) 
+        public static int GetCellColumnIndex(string cellName) 
         {
             const int lettersInAlphabet = 26;
             const int firstLetterMinusOne = 'A' - 1;
 
             int columnIndex = 0;
             int multiplier = 1;
-            int i = cell.Length - 1;
-            while (i >= 0 && cell[i] >= '0' && cell[i] <= '9') i--;
+            int i = cellName.Length - 1;
+            while (i >= 0 && cellName[i] >= '0' && cellName[i] <= '9') i--;
             while (i >= 0
-                && (cell[i] >= 'a' && cell[i] <= 'z' || cell[i] >= 'A' && cell[i] <= 'Z'))
+                && (cellName[i] >= 'a' && cellName[i] <= 'z' || cellName[i] >= 'A' && cellName[i] <= 'Z'))
             {
-                columnIndex += (char.ToUpper(cell[i]) - firstLetterMinusOne) * multiplier;
+                columnIndex += (char.ToUpper(cellName[i]) - firstLetterMinusOne) * multiplier;
                 multiplier *= lettersInAlphabet;
                 i--;
             }
             return columnIndex;
         }
 
-        public static string GetCellColumnLetter(string cell)
+        public static string GetCellColumnLetter(string cellName)
         {
             var columnLetter = new StringBuilder();
             int i = 0;
-            while (i < cell.Length
-                && (cell[i] >= 'a' && cell[i] <= 'z' || cell[i] >= 'A' && cell[i] <= 'Z'))
-                columnLetter.Append(char.ToUpper(cell[i++]));
+            while (i < cellName.Length
+                && (cellName[i] >= 'a' && cellName[i] <= 'z' || cellName[i] >= 'A' && cellName[i] <= 'Z'))
+                columnLetter.Append(char.ToUpper(cellName[i++]));
             return columnLetter.ToString();
         }
     }
